@@ -7,9 +7,14 @@ type Note = { _id: string; title: string; content: string };
 
 export default function Dashboard() {
   const router = useRouter();
+
   const [notes, setNotes] = useState<Note[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -28,26 +33,61 @@ export default function Dashboard() {
   }, []);
 
   const add = async () => {
-    if (!title.trim() || !content.trim())
-      return alert("Title + Content required");
+  if (!title.trim() || !content.trim())
+    return alert("Title + Content required");
 
-    const res = await fetch("/api/notes", {
-      method: "POST",
+  const res = await fetch("/api/notes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, content }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) return alert(data.message || "Failed");
+
+  setTitle("");
+  setContent("");
+
+  // ✅ Reload notes properly
+  load();
+};
+
+  const startEdit = (n: Note) => {
+    setEditingId(n._id);
+    setEditTitle(n.title);
+    setEditContent(n.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditContent("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    if (!editTitle.trim() || !editContent.trim()) return alert("Title + Content required");
+
+    const res = await fetch(`/api/notes/${editingId}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, content }),
+      body: JSON.stringify({ title: editTitle, content: editContent }),
     });
 
     const data = await res.json();
-    if (!res.ok) return alert(data.message || "Failed");
+    if (!res.ok) return alert(data.message || "Update failed");
 
-    setTitle("");
-    setContent("");
-    load();
+    cancelEdit();
+    await load();
   };
 
   const del = async (id: string) => {
-    await fetch(`/api/notes/${id}`, { method: "DELETE" });
-    load();
+    const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) return alert(data.message || "Delete failed");
+
+    await load();
   };
 
   return (
@@ -59,15 +99,13 @@ export default function Dashboard() {
             <p className="text-zinc-500 mt-1">Create and manage your notes.</p>
           </div>
 
-          {/* ✅ Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <a
               href="/admin"
               className="rounded-xl px-4 py-2 font-semibold text-white bg-gradient-to-r from-sky-600 to-violet-600 hover:opacity-95"
             >
               Admin Panel
             </a>
-
             <button
               onClick={logout}
               className="rounded-xl px-4 py-2 font-semibold border border-zinc-200 bg-white hover:bg-zinc-50"
@@ -115,25 +153,56 @@ export default function Dashboard() {
               )}
 
               {notes.map((n) => (
-                <div
-                  key={n._id}
-                  className="rounded-2xl border border-zinc-200 p-4 hover:shadow-sm transition"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-bold text-zinc-900">{n.title}</p>
-                      <p className="text-zinc-600 mt-1 whitespace-pre-wrap">
-                        {n.content}
-                      </p>
+                <div key={n._id} className="rounded-2xl border border-zinc-200 p-4">
+                  {editingId === n._id ? (
+                    <div className="space-y-3">
+                      <input
+                        className="w-full rounded-xl border border-zinc-200 px-3 py-2"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                      />
+                      <textarea
+                        className="w-full rounded-xl border border-zinc-200 px-3 py-2 h-28 resize-none"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={saveEdit}
+                          className="rounded-xl px-4 py-2 font-semibold text-white bg-emerald-600 hover:opacity-95"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="rounded-xl px-4 py-2 font-semibold border border-zinc-200 hover:bg-zinc-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-
-                    <button
-                      onClick={() => del(n._id)}
-                      className="shrink-0 rounded-xl px-3 py-2 text-sm font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-bold text-zinc-900">{n.title}</p>
+                        <p className="text-zinc-600 mt-1 whitespace-pre-wrap">{n.content}</p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => startEdit(n)}
+                          className="rounded-xl px-3 py-2 text-sm font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => del(n._id)}
+                          className="rounded-xl px-3 py-2 text-sm font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
