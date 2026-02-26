@@ -33,8 +33,7 @@ export default function Dashboard() {
   }, []);
 
   const add = async () => {
-  if (!title.trim() || !content.trim())
-    return alert("Title + Content required");
+  if (!title.trim() || !content.trim()) return alert("Title + Content required");
 
   const res = await fetch("/api/notes", {
     method: "POST",
@@ -47,9 +46,7 @@ export default function Dashboard() {
 
   setTitle("");
   setContent("");
-
-  // ✅ Reload notes properly
-  load();
+  await load(); // ✅ refresh notes list
 };
 
   const startEdit = (n: Note) => {

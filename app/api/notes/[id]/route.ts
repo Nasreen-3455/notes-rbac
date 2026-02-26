@@ -3,17 +3,17 @@ import { connectDB } from "@/lib/db";
 import Note from "@/models/Note";
 import { getAuthFromRequest } from "@/lib/rbac";
 
-type RouteContext = { params: Promise<{ id: string }> };
+type Ctx = { params: Promise<{ id: string }> };
 
 // ✅ UPDATE NOTE
-export async function PUT(req: NextRequest, { params }: RouteContext) {
+export async function PUT(req: NextRequest, { params }: Ctx) {
   try {
     const auth = getAuthFromRequest(req);
     if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params; // ✅ IMPORTANT: await params (Promise)
+    const { id } = await params;
 
     const { title, content } = await req.json();
     if (!title?.trim() || !content?.trim()) {
@@ -25,17 +25,18 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     await connectDB();
 
-    const updated = await Note.findOneAndUpdate(
+    // user field must match your schema (you are using "user" now)
+    const note = await Note.findOneAndUpdate(
       { _id: id, user: auth.userId },
       { title, content },
       { new: true }
     );
 
-    if (!updated) {
+    if (!note) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ note: updated }, { status: 200 });
+    return NextResponse.json({ note }, { status: 200 });
   } catch (e: any) {
     console.error("NOTES PUT ERROR:", e);
     return NextResponse.json(
@@ -46,20 +47,20 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 }
 
 // ✅ DELETE NOTE
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
     const auth = getAuthFromRequest(req);
     if (!auth) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params; // ✅ IMPORTANT: await params (Promise)
+    const { id } = await params;
 
     await connectDB();
 
-    const deleted = await Note.findOneAndDelete({ _id: id, user: auth.userId });
+    const note = await Note.findOneAndDelete({ _id: id, user: auth.userId });
 
-    if (!deleted) {
+    if (!note) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
 
