@@ -9,32 +9,27 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function PUT(req: NextRequest, { params }: Ctx) {
   try {
     const auth = getAuthFromRequest(req);
-    if (!auth) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    if (!auth) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
 
     const { title, content } = await req.json();
     if (!title?.trim() || !content?.trim()) {
-      return NextResponse.json(
-        { message: "Title + Content required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Title + Content required" }, { status: 400 });
     }
 
     await connectDB();
 
-    // only update if note belongs to logged-in user
     const note = await Note.findOneAndUpdate(
-      { _id: id, user: auth.userId },
+      {
+        _id: id,
+        $or: [{ user: auth.userId }, { userId: auth.userId }], // ✅ IMPORTANT
+      },
       { title, content },
       { new: true }
     );
 
-    if (!note) {
-      return NextResponse.json({ message: "Not found" }, { status: 404 });
-    }
+    if (!note) return NextResponse.json({ message: "Not found" }, { status: 404 });
 
     return NextResponse.json({ note }, { status: 200 });
   } catch (e: any) {
@@ -50,9 +45,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
     const auth = getAuthFromRequest(req);
-    if (!auth) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    if (!auth) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
 
@@ -60,12 +53,10 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
 
     const deleted = await Note.findOneAndDelete({
       _id: id,
-      user: auth.userId,
+      $or: [{ user: auth.userId }, { userId: auth.userId }], // ✅ IMPORTANT
     });
 
-    if (!deleted) {
-      return NextResponse.json({ message: "Not found" }, { status: 404 });
-    }
+    if (!deleted) return NextResponse.json({ message: "Not found" }, { status: 404 });
 
     return NextResponse.json({ message: "Deleted" }, { status: 200 });
   } catch (e: any) {
