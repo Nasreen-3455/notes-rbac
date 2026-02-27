@@ -25,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 
     await connectDB();
 
-    // user field must match your schema (you are using "user" now)
+    // only update if note belongs to logged-in user
     const note = await Note.findOneAndUpdate(
       { _id: id, user: auth.userId },
       { title, content },
@@ -58,9 +58,12 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
 
     await connectDB();
 
-    const note = await Note.findOneAndDelete({ _id: id, user: auth.userId });
+    const deleted = await Note.findOneAndDelete({
+      _id: id,
+      user: auth.userId,
+    });
 
-    if (!note) {
+    if (!deleted) {
       return NextResponse.json({ message: "Not found" }, { status: 404 });
     }
 
